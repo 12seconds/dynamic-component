@@ -1,4 +1,4 @@
-import { Component, Inject, ViewChild, ViewContainerRef, DynamicComponentLoader, OnInit, AfterViewInit } from '@angular/core';
+import { Component, Inject, ViewChild, ViewContainerRef, ComponentResolver, ReflectiveInjector, OnInit, AfterViewInit } from '@angular/core';
 import { DOCUMENT } from '@angular/platform-browser';
 import { Router, ActivatedRoute, RoutesRecognized } from '@angular/router';
 import { Location } from '@angular/common';
@@ -13,11 +13,11 @@ import 'rxjs/add/operator/filter';
   styleUrls: ['app.component.css'],
 })
 export class AppComponent implements OnInit, AfterViewInit {
-  @ViewChild('target', {read: ViewContainerRef}) target;
+  @ViewChild('target', {read: ViewContainerRef}) target: ViewContainerRef;
 
-  isAuthenticated: boolean = false;
+  isAuthenticated: boolean = true;
 
-  constructor(private dcl: DynamicComponentLoader,
+  constructor(private cmpResolver: ComponentResolver,
     @Inject(DOCUMENT) private document,
     private router: Router,
     private activatedRoute: ActivatedRoute,
@@ -31,7 +31,8 @@ export class AppComponent implements OnInit, AfterViewInit {
         let routesRecognized = (<RoutesRecognized>event);
 
         let currentRoute = routesRecognized.url;
-        if (currentRoute.indexOf('login')) {
+        console.log(currentRoute.indexOf('login'));
+        if (currentRoute.indexOf('login') > 0) {
           this.document.getElementById('theme').setAttribute('href', 'default.css');
         } else {
           this.document.getElementById('theme').setAttribute('href', 'admin.css');
@@ -40,11 +41,19 @@ export class AppComponent implements OnInit, AfterViewInit {
   };
 
   ngAfterViewInit(): void {
+    // NOTE: Move this to OnInit instead?
     if (this.isAuthenticated) {
-      this.dcl.loadNextToLocation(DashboardComponent, this.target);
+      this.cmpResolver.resolveComponent(DashboardComponent)
+        .then((factory) => {
+          const injector = ReflectiveInjector.fromResolvedProviders([], this.target.parentInjector);
+          this.target.createComponent(factory, 0, injector, []);
+        });
     } else {
-        this.dcl.loadNextToLocation(SplashComponent, this.target);
+      this.cmpResolver.resolveComponent(SplashComponent)
+        .then((factory) => {
+          const injector = ReflectiveInjector.fromResolvedProviders([], this.target.parentInjector);
+          this.target.createComponent(factory, 0, injector, []);
+        });
     }
   };
-
 }
